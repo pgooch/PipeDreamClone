@@ -1,0 +1,57 @@
+import "CoreLibs/graphics"
+import "CoreLibs/sprites"
+import "CoreLibs/easing"
+
+-- Define some helper variables to keep things cleaner
+TIMER = playdate.timer
+GFX = playdate.graphics
+
+-- Load the graphics
+PIPE_GFX_TABLE = GFX.imagetable.new('gfx/pipes');
+CURSOR_GFX_TABLE = GFX.imagetable.new('gfx/cursor');
+BACKGROUND_IMAGE = GFX.image.new('gfx/background');
+BACKDROP_IMAGE = GFX.image.new('gfx/backdrop');
+
+-- import the code I broke off to try and keep thing clean
+import "tileBag"
+import "tiles"
+import "cursor"
+import "playfield"
+
+-- Initialize parts of that code
+initializeTiles()
+playfieldInitialize();
+
+-- Configure some things, this is less than optimal
+playdate.display.setRefreshRate(30)
+-- playdate.graphics.sprite.setAlwaysRedraw(true)
+
+-- Load up and place the background
+backgroundImage = GFX.sprite.new(BACKDROP_IMAGE);
+backgroundImage:setCenter(0, 0)
+backgroundImage:moveTo(0,0);
+backgroundImage:add();
+backgroundImage:setZIndex(50);
+
+initializeCursor()
+
+function playdate.update()
+  -- cursorAnimator();
+  -- cursorUpdate()
+  -- tileAnimationUpdate()
+  GFX.sprite.update()
+  -- TIMER.updateTimers()
+
+  -- playing around with background effects?
+  -- GFX.clear()
+  -- frame += 1;
+  -- for n = 0, 100 do
+  --   spotX = GFX.perlin( n+frame/100,  n+frame/200,  n+frame/300, 0, 1, 0.125)
+  --   spotY = GFX.perlin( n+frame/110,  n+frame/210,  n+frame/310, 0, 1, 0.125)
+  --   spotW = GFX.perlin( n+frame/120,  n+frame/220,  n+frame/320, 0, 1, 0.125)
+  --   spotH = GFX.perlin( n+frame/130,  n+frame/230,  n+frame/330, 0, 1, 0.125)
+  --   spotS = GFX.perlin( n+frame/140,  n+frame/240,  n+frame/340, 0, 1, 0.125) / 3
+  --   GFX.setDitherPattern(spotS);
+  --   GFX.fillEllipseInRect( spotX*400, spotY*240, spotW*100, spotH*100)
+  -- end
+end

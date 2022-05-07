@@ -1,0 +1,165 @@
+PLAYFIELD_OFFSET_X = 112 + 15;
+PLAYFIELD_OFFSET_Y = 7 + 15;
+PLAYFIELD_X = 10;
+PLAYFIELD_Y = 8;
+PREVIEW_COUNT = 5;
+PREVIEW_INDEX_START = PLAYFIELD_X*PLAYFIELD_Y+1;
+HOLD_INDEX_START = PLAYFIELD_X*PLAYFIELD_Y+PREVIEW_COUNT+1;
+
+playfield = {};
+
+-- create a fresh clean playfield
+function playfieldInitialize()
+
+	-- First just create the basics for the playfield and preview
+	for n = 1,(PLAYFIELD_X*PLAYFIELD_Y)+PREVIEW_COUNT+1 do -- All are stored inthe single playfield object, first group is the field, then preview, then hold
+		playfield[n] = {}
+
+		-- Handle the X/Y, N, and index for future reference
+		if n <= (PLAYFIELD_X*PLAYFIELD_Y) then
+			playfield[n].Y = math.floor((n-1)/PLAYFIELD_X) + 1;
+			playfield[n].X = ((n-1) % PLAYFIELD_X) + 1;
+		else
+			playfield[n].Y = -1;
+			playfield[n].X = -1;
+		end
+		playfield[n].N = n;
+
+		-- Prepare the sprite
+		playfield[n].sprite = GFX.sprite.new(PIPE_GFX_TABLE);
+		playfield[n].sprite:setZIndex( 1000 + n );
+		updateTile( n, -1 );
+		playfield[n].sprite:setCenter(0.5, 0.5);
+		playfield[n].sprite:add();
+	end
+
+	-- Move all the playfield sprites
+	for n = 1,(PLAYFIELD_X*PLAYFIELD_Y) do
+		playfield[n].sprite:moveTo( PLAYFIELD_OFFSET_X + ((playfield[n].X-1)*28), PLAYFIELD_OFFSET_Y + ((playfield[n].Y-1)*28) );
+	end
+	-- Move the Preview sprites
+	for n = PREVIEW_COUNT-1,0,-1 do
+		local x = 86 - (n*28);
+		if x < 16 then x -= 1 end -- breaks grid if negative
+		playfield[PREVIEW_INDEX_START+n].sprite:moveTo( x ,22 );
+	end
+	-- Move the hold sprite
+	playfield[HOLD_INDEX_START].sprite:moveTo(86 ,63);
+
+	-- get the needed number of preview peices and place them
+	for n = 1,PREVIEW_COUNT do
+		previewAdd();
+	end
+end
+
+-- Call when you place a peice or during setup
+function previewAdd()
+	for n = 0,PREVIEW_COUNT-1 do
+		updateTile(PREVIEW_INDEX_START+n, playfield[PREVIEW_INDEX_START+n+1].index)
+	end
+	updateTile(PREVIEW_INDEX_START+PREVIEW_COUNT-1, randomTileIndex() )
+end
+
+
+-- 		-- Loop through and update all the tiles accordingly
+-- 		for n = 1,(PLAYFIELD_X*PLAYFIELD_Y) do
+-- 				playfield[n].sprite = GFX.sprite.new(PIPE_GFX_TABLE);
+-- 				playfield[n].sprite:setZIndex( 1000 + n );
+-- 				playfieldUpdateTile( playfield[n].x, playfield[n].y, playfield[n].index );
+-- 				playfield[n].sprite:moveTo( PLAYFIELD_OFFSET_X + ((playfield[n].x-1)*28), PLAYFIELD_OFFSET_Y + ((playfield[n].y-1)*28) );
+-- 				playfield[n].sprite:add();
+-- 		end
+
+-- 		Select a space for the starting point
+-- 		startX = math.random(2,PLAYFIELD_X-1);
+-- 		startY = math.random(2,PLAYFIELD_Y-1);
+-- 		-- playfieldUpdateTile(startX, startY, {
+-- 		-- 		name = "Start";
+-- 		-- 		sprites = {
+-- 		-- 				empty = PIPE_GFX_TABLE[6];
+-- 		-- 				full = PIPE_GFX_TABLE[12];
+-- 		-- 		};
+-- 		-- 		rotation = math.random(0,3)*90;
+-- 		-- 		posAdj = {x = 0 , y = 0};
+-- 		-- 		paths = { N = " ", S = " ", E = "W", W = "E" };
+-- 		-- })
+-- 		print(startX, 2,PLAYFIELD_X-2)
+-- 		print(startY, 2,PLAYFIELD_Y-2)
+-- 		print(startR)
+
+-- 		Prep the hold sprite
+-- 		hold.sprite = GFX.sprite.new();
+-- 		hold.sprite:setZIndex( 1000 + 10 );
+-- 		hold.sprite:setImage(BLANK_TILE_SPRITE);
+-- 		hold.sprite:moveTo( 86, 63 );
+-- 		hold.sprite:add();
+-- 		hold.tileIndex = -1;
+
+
+-- Update the specified cell to a new pipe type
+-- function playfieldUpdateTile(x, y, new)
+-- 		local n = ((y-1) * PLAYFIELD_X) + x;
+-- 		local newTile = getTileData(new);
+-- 																											printTable('newTile', newTile)
+-- 		for k, v in pairs(newTile) do
+-- 			if k == "sprite" then
+-- 				playfield[n].sprite:setImage(v);
+-- 				playfield[n].sprite:setRotation(newTile.rotation);
+-- 			elseif k == "rotation"
+-- 			else
+-- 				playfield[n][k] = v;
+-- 			end
+-- 		end
+-- end
+
+-- Returns simple true/false if the tile is avaialbe
+-- function playfieldTileAvailable(x, y)
+-- 		n = ((y-1) * PLAYFIELD_X) + x;
+-- 		return (playfield[n].index > 0) == false;
+-- end
+
+
+-- function getNextTile()
+-- 		return TILES[preview[1].tileIndex];
+-- end
+
+-- -- -- Hold functionality
+-- -- function checkHold()
+-- -- 		return hold.tileIndex > 0;
+-- -- end
+-- -- function holdTileAt(x, y)
+-- -- 		n = ((y-1) * PLAYFIELD_X) + x;
+-- -- 		hold.tile = playfield[n].title
+-- -- 		hold.tileIndex = playfield[n].tileIndex
+-- -- 		-- hold.sprite:setImage(playfield[n].sprite._sprite);
+-- -- 		printTable(playfield[n])
+
+-- -- 		-- hold.tile = playfield[n].tile;
+-- -- 		-- hold.tileIndex = playfield[n].tileIndex
+-- -- 		-- printTable = 
+-- -- 		-- playfield[n].sprite:setRotation(new.rotation);
+
+-- -- 		-- playfieldUpdateTile(x, y, 0)
+-- -- end
+
+-- -- This will either pull data from the TILES object or fill in the special cases itself
+-- function getTileData(index)
+-- 	if index <= 0 then
+-- 		return {
+-- 			name   = "Empty";
+-- 			index  = -1;
+-- 			ins    = { N = false, S = false, E = false, W = false };
+-- 			outs   = { N = "",    S = "",    E = "",    W = ""    };
+-- 			sprite = BLANK_TILE_SPRITE
+-- 		}
+-- 	else
+-- 		local thisTile = getTile(index)
+-- 		return {
+-- 			name   = thisTile.name;
+-- 			index  = thisTile.index;
+-- 			ins    = thisTile.ins;
+-- 			outs   = thisTile.outs;
+-- 			sprite = thisTile.sprites.empty;
+-- 		}
+-- 	end
+-- end

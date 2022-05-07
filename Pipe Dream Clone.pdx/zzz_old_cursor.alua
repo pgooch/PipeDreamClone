@@ -1,0 +1,289 @@
+-- This handles the cursor and it's primary movement/placement functions, this includes the
+-- in-place preview (whatever that will end up being) and the cursors idle animation
+CURSOR = {}
+
+CURSOR_FACING_OFFSETS = {
+  {X = 4, Y= 4},
+  {X =-6, Y= 6},
+  {X = 6, Y=-6},
+  {X =-6, Y=-6},
+}
+
+-- Get it prepped
+function initializeCursor()
+  CURSOR.X = 5;
+  CURSOR.Y = 5;
+  CURSOR.locked = false;
+
+  CURSOR.fadeSprite = GFX.sprite.new(CURSOR_GFX_TABLE);
+  CURSOR.fadeSprite:setZIndex(1999);
+  CURSOR.fadeSprite:setImage(CURSOR_GFX_TABLE[1]);
+  CURSOR.fadeSprite:add();
+
+  CURSOR.sprite = GFX.sprite.new(CURSOR_GFX_TABLE);
+  CURSOR.sprite:setZIndex(2000);
+  CURSOR.sprite:setImage(CURSOR_GFX_TABLE[2]);
+  CURSOR.sprite:add();
+
+  -- CURSOR.animationFrame = 1;
+  -- CURSOR.animationDelay = 0;
+  -- CURSOR.isAnimatingPlacement = false;
+  -- CURSOR.flip = playdate.graphics.kImageUnflipped;
+  cursorUpdatePosition();
+  -- CURSOR:add();
+
+end
+
+-- The idle animation, also handles changed the facing when it gets near the edge
+function cursorAnimator()
+  -- if CURSOR.animationDelay >= 1 then
+  --   if CURSOR.isAnimatingPlacement then
+  --     CURSOR:setImage(CURSOR_GFX_TABLE[CURSOR.animationFrame]);
+  --     CURSOR.animationFrame += 1
+
+  --     -- done with animation, reset
+  --     if CURSOR.animationFrame > 6 then 
+  --       CURSOR.animationFrame = 1 
+  --       CURSOR.isAnimatingPlacement = false
+  --       CURSOR:setImage(CURSOR_GFX_TABLE[1]);
+  --       CURSOR.locked = false;
+  --     end
+  --     CURSOR.animationDelay = 0
+
+  --   end
+  -- end
+  -- CURSOR.animationDelay += 1
+end
+
+-- Actually moved the cursor to a new location
+function cursorUpdatePosition()
+  -- All this logic flipped around the cursor, I decided not to use it but it was annoying to set up so I'm keeping it.
+  -- if CURSOR.X == 1 then
+  --   if CURSOR.flip == playdate.graphics.kImageUnflipped then
+  --     CURSOR.flip = playdate.graphics.kImageFlippedX
+  --   elseif CURSOR.flip == playdate.graphics.kImageFlippedY then
+  --     CURSOR.flip = playdate.graphics.kImageFlippedXY
+  --   end
+  -- elseif CURSOR.X == PLAYFIELD_SIZE.X then
+  --   if CURSOR.flip == playdate.graphics.kImageFlippedX then
+  --     CURSOR.flip = playdate.graphics.kImageUnflipped
+  --   elseif CURSOR.flip == playdate.graphics.kImageFlippedXY then
+  --     CURSOR.flip = playdate.graphics.kImageFlippedX
+  --   end
+  -- end
+
+  -- if CURSOR.Y == 1 then
+  --   if CURSOR.flip == playdate.graphics.kImageUnflipped then
+  --     CURSOR.flip = playdate.graphics.kImageFlippedY
+  --   elseif CURSOR.flip == playdate.graphics.kImageFlippedX then
+  --     CURSOR.flip = playdate.graphics.kImageFlippedXY
+  --   end
+  -- elseif CURSOR.Y == PLAYFIELD_SIZE.Y then
+  --   if CURSOR.flip == playdate.graphics.kImageFlippedY then
+  --     CURSOR.flip = playdate.graphics.kImageUnflipped
+  --   elseif CURSOR.flip == playdate.graphics.kImageFlippedXY then
+  --     CURSOR.flip = playdate.graphics.kImageFlippedX
+  --   end
+  -- end
+  local x = PLAYFIELD_OFFSET.X + 0 + ((CURSOR.X - 1) * 28);
+  local y = PLAYFIELD_OFFSET.Y + 0 + ((CURSOR.Y - 1) * 28);
+
+  CURSOR.fadeSprite:moveTo(x,y)
+  CURSOR.sprite:moveTo(x,y)
+
+  -- CURSOR:moveTo(((CURSOR.X - 1) * 28) + PLAYFIELD_OFFSET.X - CURSOR_FACING_OFFSETS[CURSOR.flip+1].X,((CURSOR.Y - 1) * 28) + PLAYFIELD_OFFSET.Y - CURSOR_FACING_OFFSETS[CURSOR.flip+1].Y);
+end
+
+-- Handle all the inputs
+playdate.inputHandlers.push({
+
+  leftButtonDown = function()
+    if CURSOR.locked then return end
+
+    CURSOR.X = math.max(1, CURSOR.X-1)
+    cursorUpdatePosition();
+  end,
+
+  upButtonDown = function()
+    if CURSOR.locked then return end
+
+    CURSOR.Y = math.max(1, CURSOR.Y-1)
+    cursorUpdatePosition();
+  end,
+
+  rightButtonDown = function()
+    if CURSOR.locked then return end
+
+    CURSOR.X = math.min(PLAYFIELD_SIZE.X, CURSOR.X+1)
+    cursorUpdatePosition();
+  end,
+
+  downButtonDown = function()
+    if CURSOR.locked then return end
+
+    CURSOR.Y = math.min(PLAYFIELD_SIZE.Y, CURSOR.Y+1)
+    cursorUpdatePosition();
+  end,
+
+  AButtonUp = function()
+    if CURSOR.locked then return end
+
+    CURSOR.locked = true;
+    CURSOR.isAnimatingPlacement = true;
+
+    -- if isTileAt(cursorSprite.X, cursorSprite.Y) == false then
+    --   updateTileAt(cursorSprite.X, cursorSprite.Y, playfield[PREVIEW_INDEX_START].index)
+    -- 	previewAdd()
+    -- else
+    --   print('kill it')
+    --   replaceTileAt(cursorSprite.X, cursorSprite.Y, playfield[PREVIEW_INDEX_START].index)
+    -- end
+  end,
+
+  BButtonUp = function()
+    if CURSOR.locked then return end
+
+    -- if haveHold() == false then
+    --   if isTileAt(cursorSprite.X, cursorSprite.Y) == true then
+    --     addHold(cursorSprite.X, cursorSprite.Y)
+    --   else
+    --     print("Provide some sort of error notification about not being able to fill the empty hold with nothing.")
+    --   end
+    -- else
+    --   if isTileAt(cursorSprite.X, cursorSprite.Y) == false then
+    --     placeHold(cursorSprite.X, cursorSprite.Y)
+    --   else
+    --     print("Provide some sort of error notification about not being able to place nothing or trying to place it over something (that will change).")
+    --   end
+    -- end
+    -- if checkHold() and playfieldTileAvailable(cursorSprite.X, cursorSprite.Y) then
+    --   print('place hold down')
+    -- elseif checkHold() == false and playfieldTileAvailable(cursorSprite.X, cursorSprite.Y) == false then
+    --   -- holdTileAt(cursorSprite.X, cursorSprite.Y)
+    -- end
+    -- if  then
+    --   playfieldUpdateTile(cursorSprite.X, cursorSprite.Y, getNextTile())
+    --   previewAdd()
+    -- end
+
+
+  end,
+})
+
+
+-- Tweakables
+
+-- CURSOR_FRAME_DELAY = 5;
+-- CURSOR_ANIMATION_FRAMES = 3;
+
+-- -- Add a cursor to the playfield
+-- cursorSprite = GFX.sprite.new(CURSOR_GFX_TABLE);
+-- cursorSprite:setZIndex(2000);
+-- cursorSprite:add();
+-- cursorSprite.animationFrame = 1;
+-- cursorSprite.animationReversed = false;
+-- cursorSprite.delayFrame = 1;
+-- cursorSprite.X = 1
+-- cursorSprite.Y = 1
+-- cursorSprite.lock = false; -- prevents movement, used for replacing tiles
+
+-- -- update the location of the cursor on screen
+-- function cursorUpdatePosition()
+--   cursorSprite:moveTo(((cursorSprite.X - 1) * 28) + PLAYFIELD_OFFSET_X,((cursorSprite.Y - 1) * 28) + PLAYFIELD_OFFSET_Y);
+-- end
+-- cursorUpdatePosition();
+
+-- -- update the animation from
+-- function cursorUpdate()
+
+--   cursorSprite.delayFrame += 1;
+--   if (cursorSprite.delayFrame >= CURSOR_FRAME_DELAY) then
+--     cursorSprite.delayFrame = 0;
+
+--     if (cursorSprite.animationReversed) then
+--       cursorSprite.animationFrame -= 1
+--     else
+--       cursorSprite.animationFrame += 1
+--     end
+--     cursorSprite:setImage(CURSOR_GFX_TABLE[cursorSprite.animationFrame]);
+--     if (cursorSprite.animationFrame >= CURSOR_ANIMATION_FRAMES) then
+--       cursorSprite.animationReversed = true;
+--     elseif (cursorSprite.animationFrame <= 1) then
+--       cursorSprite.animationReversed = false;
+--     end
+
+--   end
+-- end
+
+-- -- Handle the inputs that move the cursor around
+-- playdate.inputHandlers.push({
+
+--   leftButtonDown = function()
+--     if cursorSprite.lock then return end
+
+--     cursorSprite.X = math.max(1, cursorSprite.X-1)
+--     cursorUpdatePosition();
+--   end,
+
+--   upButtonDown = function()
+--     if cursorSprite.lock then return end
+
+--     cursorSprite.Y = math.max(1, cursorSprite.Y-1)
+--     cursorUpdatePosition();
+--   end,
+
+--   rightButtonDown = function()
+--     if cursorSprite.lock then return end
+
+--     cursorSprite.X = math.min(PLAYFIELD_X, cursorSprite.X+1)
+--     cursorUpdatePosition();
+--   end,
+
+--   downButtonDown = function()
+--     if cursorSprite.lock then return end
+
+--     cursorSprite.Y = math.min(PLAYFIELD_Y, cursorSprite.Y+1)
+--     cursorUpdatePosition();
+--   end,
+
+--   AButtonUp = function()
+--     if cursorSprite.lock then return end
+
+--     if isTileAt(cursorSprite.X, cursorSprite.Y) == false then
+--       updateTileAt(cursorSprite.X, cursorSprite.Y, playfield[PREVIEW_INDEX_START].index)
+--     	previewAdd()
+--     else
+--       print('kill it')
+--       replaceTileAt(cursorSprite.X, cursorSprite.Y, playfield[PREVIEW_INDEX_START].index)
+--     end
+--   end,
+
+--   BButtonUp = function()
+--     if cursorSprite.lock then return end
+
+--     if haveHold() == false then
+--       if isTileAt(cursorSprite.X, cursorSprite.Y) == true then
+--         addHold(cursorSprite.X, cursorSprite.Y)
+--       else
+--         print("Provide some sort of error notification about not being able to fill the empty hold with nothing.")
+--       end
+--     else
+--       if isTileAt(cursorSprite.X, cursorSprite.Y) == false then
+--         placeHold(cursorSprite.X, cursorSprite.Y)
+--       else
+--         print("Provide some sort of error notification about not being able to place nothing or trying to place it over something (that will change).")
+--       end
+--     end
+--     -- if checkHold() and playfieldTileAvailable(cursorSprite.X, cursorSprite.Y) then
+--     --   print('place hold down')
+--     -- elseif checkHold() == false and playfieldTileAvailable(cursorSprite.X, cursorSprite.Y) == false then
+--     --   -- holdTileAt(cursorSprite.X, cursorSprite.Y)
+--     -- end
+--     -- if  then
+--     --   playfieldUpdateTile(cursorSprite.X, cursorSprite.Y, getNextTile())
+--     --   previewAdd()
+--     -- end
+
+
+--   end,
+-- })
