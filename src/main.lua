@@ -1,6 +1,6 @@
 -- Load needed core libraries
-import "CoreLibs/graphics"
 import "CoreLibs/sprites"
+import "CoreLibs/graphics"
 import "CoreLibs/timer"
 
 -- Load constants needed for this file
@@ -38,16 +38,21 @@ GFX.setFont(GFX.font.new('gfx/Nontendo-Bold'))
 local line1 <const> = "Some"
 local line2 <const> = "Stuff"
 local line3 <const> = "Here"
+local line4 <const> = "Here"
 
 function playdate.update()
     GFX.sprite.update()
     TIMER.updateTimers()
 
+    cursorAnimation()
     updateTimerDisplay()
 
     playdate.drawFPS(2, 167);
 
-    GFX.drawTextAligned(line1, 42, 198, kTextAlignment.center )
-    GFX.drawTextAligned(line2, 42, 210, kTextAlignment.center )
-    GFX.drawTextAligned(line3, 42, 222, kTextAlignment.center )
+    -- Tharr be memory memory leaks ahead
+    -- GFX.drawTextAligned(line1, 42, 198, kTextAlignment.center )
+    -- GFX.drawTextAligned(line2, 42, 210, kTextAlignment.center )
+    -- GFX.drawTextAligned(line3, 42, 222, kTextAlignment.center )
+    -- GFX.drawTextAligned(line4, 42, 236, kTextAlignment.center )
+    -- collectgarbage()
 end

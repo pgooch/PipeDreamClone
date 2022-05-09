@@ -27,9 +27,9 @@ end
 
 function updateTimerDisplay()
     if ROUND_START_TIMER.value == TIMER_BAR_Y_START then
-        GFX.drawTextAligned('Time: Now', 41, 186, kTextAlignment.center )
+        GFX.drawTextAligned('Time: Now', 8, 186, kTextAlignment.left )
     else
-        GFX.drawTextAligned('Time: '..tostring( (TIMER_BAR_Y_START - TIMER_BAR_Y_END) - (math.floor(ROUND_START_TIMER.value) - TIMER_BAR_Y_END) ), 42, 186, kTextAlignment.center )
+        GFX.drawTextAligned('Time: '..tostring( (TIMER_BAR_Y_START - TIMER_BAR_Y_END) - (math.floor(ROUND_START_TIMER.value) - TIMER_BAR_Y_END) ), 8, 186, kTextAlignment.left )
         GFX.drawLine( TIMER_BAR_X, TIMER_BAR_Y_START, TIMER_BAR_X, ROUND_START_TIMER.value)
     end
 end

@@ -14,7 +14,17 @@ local CURSOR_NEXT_OFFSET   <const> = 0;
 local CURSOR_STATUS_OFFSET <const> = 7;
 
 -- This keeps track of the current cursor movment, to get the behavior I wanted
-local movingDirections = { X = 0, Y = 0 }
+local directionsPressed = { up = false, down = false, left = false, right = false }
+local moveDelay = nil
+
+-- Animations need timers, timers need variables
+local animation = 'none';
+local animationTimer = nil;
+
+-- Cursor locks while doing things to build tension when the end is near
+local LOCK_DURATION_ADD    <const> = 120 -- 60 theoretical minimum
+local LOCK_DURATION_ERROR  <const> = 360 -- 160 theoretical minimum
+local LOCK_DURATION_REMOVE <const> = 520
 
 -- We need a few bits of data about the playfield, but we want to store it locally for performance
 local PLAYFIELD <const> = getPlayfieldData();
@@ -26,6 +36,7 @@ local CURSOR = {
     locked = false;
     status = 0;
     sprites = {main = {}, fade = {}, next = {}, sub = {}};
+    hasPlaced = false;
 }
 
 -- Sets up all the sprites and not much else
@@ -56,16 +67,27 @@ function initializeCursor()
   CURSOR.sprites.fade:add();
 end
 
+-- reset it between rounds
+function resetCursor()
+  CURSOR.locked = false;
+  CURSOR.hasPlaced = false;
+end
+
 -- These will let you move the cursor around
 function moveCursor(x, y)
     CURSOR.X = x
     CURSOR.Y = y
     updateCursorSprite()
 end
-function moveCursorRelatively(x, y)
+function moveCursorRelatively(x, y, manual)
+    if CURSOR.locked then return end
     if y == nil then
-        x = movingDirections.X
-        y = movingDirections.Y
+        x = 0
+        y = 0
+        if directionsPressed.up    then y = -1 end;
+        if directionsPressed.right then x =  1 end;
+        if directionsPressed.down  then y =  1 end;
+        if directionsPressed.left  then x = -1 end;
     end
     CURSOR.X = math.max(1, math.min(CURSOR.X + x, PLAYFIELD.size.X))
     CURSOR.Y = math.max(1, math.min(CURSOR.Y + y, PLAYFIELD.size.Y))
@@ -97,166 +119,133 @@ function updateCursorSprite()
 end
 
 -- Handle the inputs and the repeate timers
-local moveDelay = nil
 local cursorInputHanders <const> = {
-    upButtonDown = function()
-        movingDirections.Y -= 1;
-        if moveDelay == nil then
-            moveDelay = TIMER.keyRepeatTimer(moveCursorRelatively)
-        end
-    end,
-    upButtonUp = function()
-        movingDirections.Y += 1;
-        if movingDirections.X == 0 and movingDirections.Y == 0 then
-            moveDelay:remove()
-            moveDelay = nil
-        end
-    end,
-    rightButtonDown = function()
-        movingDirections.X += 1;
-        if moveDelay == nil then
-            moveDelay = TIMER.keyRepeatTimer(moveCursorRelatively)
-        end
-    end,
-    rightButtonUp = function()
-        movingDirections.X -= 1;
-        if movingDirections.X == 0 and movingDirections.Y == 0 then
-            moveDelay:remove()
-            moveDelay = nil
-        end
-    end,
-    downButtonDown = function()
-        movingDirections.Y += 1;
-        if moveDelay == nil then
-            moveDelay = TIMER.keyRepeatTimer(moveCursorRelatively)
-        end
-    end,
-    downButtonUp = function()
-        movingDirections.Y -= 1;
-        if movingDirections.X == 0 and movingDirections.Y == 0 then
-            moveDelay:remove()
-            moveDelay = nil
-        end
-    end,
-    leftButtonDown = function()
-        movingDirections.X -= 1;
-        if moveDelay == nil then
-            moveDelay = TIMER.keyRepeatTimer(moveCursorRelatively)
-        end
-    end,
-    leftButtonUp = function()
-        movingDirections.X += 1;
-        if movingDirections.X == 0 and movingDirections.Y == 0 then
-            moveDelay:remove()
-            moveDelay = nil
-        end
-    end,
-    AButtonUp = function()
-        print('A Button Up, place piece')
-    end,
+    upButtonDown    = function()   directionalInputDown( 'up' )    end,
+    upButtonUp      = function()       directionInputUp( 'up' )    end,
+    downButtonDown  = function()   directionalInputDown( 'down' )  end,
+    downButtonUp    = function()       directionInputUp( 'down' )  end,
+    leftButtonDown  = function()   directionalInputDown( 'left' )  end,
+    leftButtonUp    = function()       directionInputUp( 'left' )  end,
+    rightButtonDown = function()   directionalInputDown( 'right' ) end,
+    rightButtonUp   = function()       directionInputUp( 'right' ) end,
+    AButtonUp       = function() mainActionInputHandler()          end,
     BButtonUp = function()
         print('B Button Up, maybe do something')
     end,
-
 }
--- done this way because I'll probably want to use do it differently for menus
 playdate.inputHandlers.push(cursorInputHanders)
 
+-- manages the directional input, a surprising complex task when you very particular on how it should work
+function directionalInputDown( direction )
+    directionsPressed[direction] = true
+    if moveDelay == nil then
+        moveDelay = TIMER.keyRepeatTimer(moveCursorRelatively);
+    elseif moveDelay.duration ~= 100 then
+        if direction == 'up' then moveCursorRelatively(0,-1) end
+        if direction == 'down' then moveCursorRelatively(0,1) end
+        if direction == 'left' then moveCursorRelatively(-1,0) end
+        if direction == 'right' then moveCursorRelatively(1,0) end
+    end
+end
+function directionInputUp( direction )
+    directionsPressed[direction] = false
+    if directionsPressed.up == false and directionsPressed.right == false and directionsPressed.down == false and directionsPressed.left == false then
+        moveDelay:remove()
+        moveDelay = nil
+    end
+end
 
+-- Manges places, remplacement, and error when trying to do something you can't
+function mainActionInputHandler(force)
+    if force == nil then force = false end
+    if force or CURSOR.locked == false then
+        -- Start by lockikng things down and getting details on the current tile
+        CURSOR.locked = true;
+        local currentTile <const> = getTileAt(CURSOR.X, CURSOR.Y)
+        local timerDuration = 0
 
+        -- This can do one of several things depending on currentTile
+        -- Filled or a game-placed tile, cannot be changed
+        if currentTile.locked then
+            animation = 'error'
+            animationTimer = TIMER.new(LOCK_DURATION_ERROR, function()
+                animation = 'none'
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[6]) -- reset error to center
+                CURSOR.locked = false;
+            end)
 
--- To get auto-repeating were managing moving, done on a framebases
--- vMoveRepeating = false;
--- vMoveTimer = 0;
--- hMoveRepeating = false;
--- hMoveTimer = 0;
--- updatedThisFrame = false;
--- function manageInputs()
---     if CURSOR.locked then return end
+        -- filled but not locked, can be removed then added to
+        elseif currentTile.empty == false then
+            animation = 'remove'
+            animationTimer = TIMER.new(LOCK_DURATION_REMOVE, function()
+                updateTileAt(CURSOR.X, CURSOR.Y, 0)
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[1])
+                mainActionInputHandler(true)
+            end)
 
---     -- Buttons states updating if were moving
---     if playdate.buttonJustPressed(playdate.kButtonDown) or playdate.buttonJustPressed(playdate.kButtonUp) then
---         vMoveTimer = 1;
---     elseif playdate.buttonJustReleased(playdate.kButtonDown) or playdate.buttonJustReleased(playdate.kButtonUp) then
---         vMoveTimer = 0;
---         vMoveRepeating = false
---         updatedThisFrame = false;
---     end
---     if playdate.buttonJustPressed(playdate.kButtonLeft) or playdate.buttonJustPressed(playdate.kButtonRight) then
---         hMoveTimer = 1;
---     elseif playdate.buttonJustReleased(playdate.kButtonLeft) or playdate.buttonJustReleased(playdate.kButtonRight) then
---         hMoveTimer = 0;
---         hMoveRepeating = false
---         updatedThisFrame = false;
---     end
+        -- just a boring empty tile, add
+        else
+            animation = 'add'
+            animationTimer = TIMER.new(LOCK_DURATION_ADD, function()
+                updateTileAt(CURSOR.X, CURSOR.Y, getNextTile().index)
+                previewAdd()
+                animation = 'none'
+                CURSOR.sprites.main:setImage(CURSOR_GFX[2]); -- reset cursor to normal size
+                updateCursorSprite()
+                CURSOR.locked = false;
+            end)
+            if CURSOR.hasPlaced == false then
+            startTimer()
+            CURSOR.hasPlaced = true
+            end;
+        end
+    end
+end
 
---     -- Vertical movement timer/reset
---     if vMoveTimer > 0 then
---         if vMoveTimer == 1 then
---             updatedThisFrame = true;
---             if playdate.buttonIsPressed(playdate.kButtonDown) then
---                 CURSOR.Y = math.min(PLAYFIELD_SIZE.Y, CURSOR.Y+1)
---             else
---                 CURSOR.Y = math.max(1, CURSOR.Y-1)
---             end
---             if vMoveRepeating then
---                 vMoveTimer = CURSOR_SUBSEQUENT_DELAYS
---             else
---                 vMoveTimer = CURSOR_FIRST_DELAY
---             end
---             vMoveRepeating = true
---         else
---             vMoveTimer -= 1
---         end
---     end
+-- Manges the cursor and cust-status animations
+local ADD_LOCK_THIRD           <const> = LOCK_DURATION_ADD/3;
+local ERROR_LOCK_SINGLE_FRAME  <const> = LOCK_DURATION_ERROR/11;
+local REMOVE_LOCK_SINGLE_FRAME <const> = LOCK_DURATION_REMOVE/11;
+function cursorAnimation()
+    if animation ~= 0 then
 
---     -- Horizontal movement timer/reset
---     if hMoveTimer > 0 then
---         if hMoveTimer == 1 then
---             updatedThisFrame = true;
---             if playdate.buttonIsPressed(playdate.kButtonRight) then
---                 CURSOR.X = math.min(PLAYFIELD_SIZE.X, CURSOR.X+1)
---             else
---                 CURSOR.X = math.max(1, CURSOR.X-1)
---             end
---             if hMoveRepeating then
---                 hMoveTimer = CURSOR_SUBSEQUENT_DELAYS
---             else
---                 hMoveTimer = CURSOR_FIRST_DELAY
---             end
---             hMoveRepeating = true
---         else
---             hMoveTimer -= 1
---         end
---     end
+        -- add animation, frames 1-3 of the sheet
+        if animation == 'add' then
+            if animationTimer._currentTime < ADD_LOCK_THIRD then
+                CURSOR.sprites.main:setImage(CURSOR_GFX[1]);
+            elseif animationTimer._currentTime < ADD_LOCK_THIRD*2 then
+                CURSOR.sprites.main:setImage(CURSOR_GFX[2]);
+            else
+                CURSOR.sprites.main:setImage(CURSOR_GFX[3]);
+            end
+        end
 
---     -- Placing tiles
---     if playdate.buttonJustPressed(playdate.kButtonA) then
+        -- error animation, back and forth, starting from frame 6
+        if animation == 'error' then
+            local frameNumber <const> = math.floor(animationTimer._currentTime / ERROR_LOCK_SINGLE_FRAME) + 1;
+            if frameNumber == 1 or frameNumber == 3 or frameNumber == 9 or frameNumber == 11 then
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[5])
+            elseif frameNumber == 2 or frameNumber == 10  then
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[4])
+            elseif frameNumber == 5 or frameNumber == 7  then
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[7])
+            elseif frameNumber == 6  then
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[8])
+            else -- 4, 8, 12
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[6])
+            end
+        end
 
---         -- CURSOR.locked = true;
---         -- CURSOR.isAnimatingPlacement = true;
-
---         if getTileAt(CURSOR.X, CURSOR.Y).locked == false then
---             updateTileAt( CURSOR.X, CURSOR.Y, playfield[CONST.preview.startIndex].index );
---             previewAdd();
---             updateCursorSprite();
---         end
---     --   updateTileAt(cursorSprite.X, cursorSprite.Y, playfield[PREVIEW_INDEX_START].index)
---     -- 	previewAdd()
---     -- else
---     --   print('kill it')
---     --   replaceTileAt(cursorSprite.X, cursorSprite.Y, playfield[PREVIEW_INDEX_START].index)
---     -- end
-
-
---     end
---     if playdate.buttonJustPressed(playdate.kButtonB) then
---         print("B")
---         printTable(playfield[1])
---     end
-
---     -- Update id needed
---     if updatedThisFrame then
---         updateCursorSprite()
---     end
--- end
+        -- remove animation, turns the wrench 3x
+        if animation == 'remove' then
+            local frameNumber <const> = math.floor(animationTimer._currentTime / REMOVE_LOCK_SINGLE_FRAME) + 1;
+            if frameNumber == 1 or frameNumber == 3 or frameNumber == 5 or frameNumber == 7 or frameNumber == 9 or frameNumber == 11 then
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[2])
+            elseif frameNumber == 2 or frameNumber == 6 or frameNumber == 10 then
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[3])
+            else -- 4, 8
+                CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[1])
+            end
+        end
+    end
+end

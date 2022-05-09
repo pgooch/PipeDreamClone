@@ -33,7 +33,6 @@ function playfieldInitialize()
 		-- Prepare the sprite
         PLAYFIELD[n].sprite = GFX.sprite.new(PIPES_GFX);
 		PLAYFIELD[n].sprite:setZIndex( 1000 + n );
-		-- updateTile( n, 0 );
 		PLAYFIELD[n].sprite:setCenter(0, 0);
 		PLAYFIELD[n].sprite:add();
 	end
@@ -75,7 +74,6 @@ function playfieldStart()
     updateTileAt(startX, startY, START_TILES[startF])
 
     -- Move the cursor to the start
-    print(startF)
     if startF == 1 then
         moveCursor(startX +1, startY)
     elseif startF == 2 then
@@ -93,7 +91,7 @@ function playfieldStart()
 
     -- Finally initialize the flow start timer
     flowTimerInit()
-
+	resetCursor()
 end
 
 -- Call when you place a peice or during setup
@@ -122,9 +120,6 @@ function updateTile(n, new)
 			end
 		end
 	end
-    if n == 1 then
-        print("updating #1 to ", originalTile.sprites.empty)
-    end
 	PLAYFIELD[n].sprite:setImage(PIPES_GFX[originalTile.sprites.empty]);
 end
 
@@ -135,6 +130,11 @@ function getTileAt(x, y)
 end
 function getTile(n)
     return PLAYFIELD[n]
+end
+
+-- gets the next tile from the preview
+function getNextTile()
+	return PLAYFIELD[PREVIEW_INDEX_START]
 end
 
 -- Returns data about the playfield so other places can keep a local copy
