@@ -1,17 +1,40 @@
 -- Load constants needed for this file
 local GFX <const> = playdate.graphics;
+local TIMER <const> = playdate.timer;
+
+-- Settings for various thins
+local PREVIEW_ANIMATION_DURATION = 200 -- keep cusor.lua LOCK_DURATION_ADD in mind
+
+-- Defines the clipping box for the preview animation
+local PREVIEW_MASK_X <const> = 42
+local PREVIEW_MASK_Y <const> = 5
+local PREVIEW_MASK_W <const> = 34
+local PREVIEW_MASK_H <const> = 236
 
 -- Load graphics
 local PIPES_GFX <const> = GFX.imagetable.new('gfx/pipes')
 
 local PLAYFIELD_DRAW_OFFSET <const> = { X = 87, Y = 7 } -- this is also in; cursor
 local PLAYFIELD_SIZE        <const> = { X = 10, Y = 8 }
-local PREVIEW_COUNT         <const> = 8;
-local PREVIEW_DRAW_OFFSET   <const> = { X = 45, Y = 144 }
+local PREVIEW_COUNT         <const> = 10;
+local PREVIEW_DRAW_OFFSET   <const> = { X = 45, Y = 7 }
 local PREVIEW_INDEX_START   <const> = PLAYFIELD_SIZE.X*PLAYFIELD_SIZE.Y+1;
 
 local PLAYFIELD = {};
 playfield = {};
+
+-- local DEBUG_PLAYFIELD <const> = {
+-- 	0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
+-- 	0 , 3 , 1 , 4 , 0 , 0 , 3 , 1 , 4 , 0 ,
+-- 	0 , 2 , 0 , 2 , 0 , 0 , 2 , 0 , 2 , 0 ,
+-- 	0 , 5 , 1 , 7 , 1 , 2 , 7 , 1 , 6 , 0 ,
+-- 	0 , 3 , 1 , 7 , 1 ,11 , 1 , 1 , 4 , 0 ,
+-- 	0 , 2 , 0 , 2 , 0 , 2 , 2 , 0 , 2 , 0 ,
+-- 	0 , 5 , 1 , 6 , 0 , 0 , 5 , 1 , 6 , 0 ,
+-- 	0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
+-- 	0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 -- extra row for preview, remember to disable default start tile placement
+-- }
+-- prepareWaterWalker(6, 5)
 
 -- create a fresh clean playfield
 function playfieldInitialize()
@@ -41,10 +64,15 @@ function playfieldInitialize()
 	for n = 1,(PLAYFIELD_SIZE.X*PLAYFIELD_SIZE.Y) do
 		PLAYFIELD[n].sprite:moveTo( PLAYFIELD_DRAW_OFFSET.X + ((PLAYFIELD[n].X-1)*28), PLAYFIELD_DRAW_OFFSET.Y + ((PLAYFIELD[n].Y-1)*28) );
 	end
-    -- Move the Preview sprites
+    -- Move the Preview sprites, set the clipping rect for the animation
+	resetPreviewAnimation()
 	for n = PREVIEW_COUNT-1,0,-1 do
-		PLAYFIELD[PREVIEW_INDEX_START+n].sprite:moveTo( PREVIEW_DRAW_OFFSET.X , PREVIEW_DRAW_OFFSET.Y - (n*28) );
+		PLAYFIELD[PREVIEW_INDEX_START+n].sprite:setClipRect(PREVIEW_MASK_X, PREVIEW_MASK_Y, PREVIEW_MASK_W, PREVIEW_MASK_H)
 	end
+
+	-- initialize others things that need to be started with the playfield
+	initializeTimerFlowBar();
+	initializeCursor();
 end
 
 -- This is the function thats called at the start of a round
@@ -53,6 +81,7 @@ function playfieldStart()
     -- clear the field
     for n = 1,(PLAYFIELD_SIZE.X*PLAYFIELD_SIZE.Y)+PREVIEW_COUNT do
 		updateTile( n, 0 );
+		-- updateTile( n, DEBUG_PLAYFIELD[n] );
     end
 
     -- Place the starting point
@@ -72,6 +101,7 @@ function playfieldStart()
     end
     -- place the starting peice
     updateTileAt(startX, startY, START_TILES[startF])
+	prepareWaterWalker(startX, startY)
 
     -- Move the cursor to the start
     if startF == 1 then
@@ -90,7 +120,6 @@ function playfieldStart()
 	end
 
     -- Finally initialize the flow start timer
-    flowTimerInit()
 	resetCursor()
 end
 
@@ -123,6 +152,22 @@ function updateTile(n, new)
 	PLAYFIELD[n].sprite:setImage(PIPES_GFX[originalTile.sprites.empty]);
 end
 
+-- Ways to simply set a tiles animation frame, used by the water walker to animate the flow
+function setTileSpriteFrame(x,y,frame)
+	local n = ((y-1) * PLAYFIELD_SIZE.X) + x;
+	PLAYFIELD[n].sprite:setImage(PIPES_GFX[frame]);
+end
+
+-- Sets a tile to filled, called by the walker once it's done with a space.
+function setTileFilled(x,y)
+	local n = ((y-1) * PLAYFIELD_SIZE.X) + x;
+	PLAYFIELD[n].filled = true;
+end
+function setTileLocked(x,y)
+	local n = ((y-1) * PLAYFIELD_SIZE.X) + x;
+	PLAYFIELD[n].locked = true;
+end
+
 -- Ways to get details about tiles at specified locatins
 function getTileAt(x, y)
 	local n = ((y-1) * PLAYFIELD_SIZE.X) + x;
@@ -143,4 +188,23 @@ function getPlayfieldData()
         drawOffset = PLAYFIELD_DRAW_OFFSET,
         size = PLAYFIELD_SIZE,
     };
+end
+
+-- This is for the preview animation, it is started by getNextTile and it ends itself
+local animationOffsetTimer = nil;
+function startPreviewAnimation()
+	offsetTimer = TIMER.new(PREVIEW_ANIMATION_DURATION, 0, 29, playdate.easingFunctions.outBack)
+end
+function previewAnimation()
+	if offsetTimer ~= nil then
+		for n = PREVIEW_COUNT-1,0,-1 do
+			PLAYFIELD[PREVIEW_INDEX_START+n].sprite:moveTo( PREVIEW_DRAW_OFFSET.X , PREVIEW_DRAW_OFFSET.Y - (n*28) + offsetTimer.value );
+		end
+	end
+end
+function resetPreviewAnimation()
+	for n = PREVIEW_COUNT-1,0,-1 do
+		PLAYFIELD[PREVIEW_INDEX_START+n].sprite:moveTo( PREVIEW_DRAW_OFFSET.X , PREVIEW_DRAW_OFFSET.Y + (n*28) );
+	end
+	offsetTimer = nil;
 end

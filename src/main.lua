@@ -9,8 +9,9 @@ local TIMER <const> = playdate.timer;
 
 -- Image the other files that keep things clean(er, sorta)
 import "tiles"
+import "water_walker"
 import "playfield"
-import "start_timer"
+import "timer_flow_bar"
 import "cursor"
 import "system_menu"
 
@@ -19,7 +20,6 @@ playdate.display.setRefreshRate(50)
 
 -- Initialize Things
 playfieldInitialize()
-initializeCursor()
 initializeSystemMenu()
 
 playfieldStart()
@@ -35,10 +35,10 @@ backgroundImage:setZIndex(0);
 GFX.setFont(GFX.font.new('gfx/Nontendo-Bold'))
 
 -- The main loop
-local line1 <const> = "Some"
-local line2 <const> = "Stuff"
-local line3 <const> = "Here"
-local line4 <const> = "Here"
+-- local line1 <const> = "Stage 1⁃1"
+-- local line2 <const> = "Ⅷ↉Ⅸ⅟Ⅳ"
+-- local line3 <const> = "Here"
+-- local line4 <const> = "Here"
 
 function playdate.update()
     GFX.sprite.update()
@@ -46,13 +46,20 @@ function playdate.update()
 
     cursorAnimation()
     updateTimerDisplay()
+    previewAnimation()
+    waterAnimation()
 
-    playdate.drawFPS(2, 167);
+    playdate.drawFPS(43, 228);
 
     -- Tharr be memory memory leaks ahead
-    -- GFX.drawTextAligned(line1, 42, 198, kTextAlignment.center )
+    -- GFX.setFont( GFX.font.new('gfx/W95FA'))
+    -- GFX.drawTextAligned(line1, 42, 196, kTextAlignment.center )
     -- GFX.drawTextAligned(line2, 42, 210, kTextAlignment.center )
     -- GFX.drawTextAligned(line3, 42, 222, kTextAlignment.center )
     -- GFX.drawTextAligned(line4, 42, 236, kTextAlignment.center )
     -- collectgarbage()
 end
+
+-- function playdate.debugDraw()
+--     -- playdate.graphics.drawRect(42, 0, 34, 176) 
+-- end

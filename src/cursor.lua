@@ -23,8 +23,8 @@ local animationTimer = nil;
 
 -- Cursor locks while doing things to build tension when the end is near
 local LOCK_DURATION_ADD    <const> = 120 -- 60 theoretical minimum
-local LOCK_DURATION_ERROR  <const> = 360 -- 160 theoretical minimum
-local LOCK_DURATION_REMOVE <const> = 520
+local LOCK_DURATION_ERROR  <const> = 240 -- 160 theoretical minimum
+local LOCK_DURATION_REMOVE <const> = 480 -- 191 theoretical minimum
 
 -- We need a few bits of data about the playfield, but we want to store it locally for performance
 local PLAYFIELD <const> = getPlayfieldData();
@@ -102,7 +102,7 @@ end
 -- This just repositions the sprites
 function updateCursorSprite()
     -- before we move lets check the status and see if it needs a sprite change
-    if getTileAt(CURSOR.X, CURSOR.Y).locked then
+    if getTileAt(CURSOR.X, CURSOR.Y).locked or getTileAt(CURSOR.X, CURSOR.Y).filled then
         CURSOR.sprites.sub:setImage(CURSOR_STATUS_GFX[6]);
         CURSOR.sprites.sub:setVisible(true)
     elseif getTileAt(CURSOR.X, CURSOR.Y).empty == false then
@@ -166,7 +166,7 @@ function mainActionInputHandler(force)
 
         -- This can do one of several things depending on currentTile
         -- Filled or a game-placed tile, cannot be changed
-        if currentTile.locked then
+        if currentTile.locked or currentTile.filled then
             animation = 'error'
             animationTimer = TIMER.new(LOCK_DURATION_ERROR, function()
                 animation = 'none'
@@ -176,6 +176,7 @@ function mainActionInputHandler(force)
 
         -- filled but not locked, can be removed then added to
         elseif currentTile.empty == false then
+            setTileLocked(CURSOR.X, CURSOR.Y)
             animation = 'remove'
             animationTimer = TIMER.new(LOCK_DURATION_REMOVE, function()
                 updateTileAt(CURSOR.X, CURSOR.Y, 0)
@@ -186,12 +187,14 @@ function mainActionInputHandler(force)
         -- just a boring empty tile, add
         else
             animation = 'add'
+            startPreviewAnimation()
             animationTimer = TIMER.new(LOCK_DURATION_ADD, function()
                 updateTileAt(CURSOR.X, CURSOR.Y, getNextTile().index)
                 previewAdd()
                 animation = 'none'
                 CURSOR.sprites.main:setImage(CURSOR_GFX[2]); -- reset cursor to normal size
                 updateCursorSprite()
+                resetPreviewAnimation();
                 CURSOR.locked = false;
             end)
             if CURSOR.hasPlaced == false then
@@ -202,7 +205,7 @@ function mainActionInputHandler(force)
     end
 end
 
--- Manges the cursor and cust-status animations
+-- Manges the cursor and sub-status animations
 local ADD_LOCK_THIRD           <const> = LOCK_DURATION_ADD/3;
 local ERROR_LOCK_SINGLE_FRAME  <const> = LOCK_DURATION_ERROR/11;
 local REMOVE_LOCK_SINGLE_FRAME <const> = LOCK_DURATION_REMOVE/11;
