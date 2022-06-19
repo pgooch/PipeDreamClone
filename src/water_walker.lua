@@ -14,7 +14,7 @@ local WATER = {
     X = 1;
     Y = 1;
     flowing = false;
-    speed = 1400; -- speed is ms for a standard piece, a standard piece is like a straight one
+    speed = 13400; -- speed is ms for a standard piece, a standard piece is like a straight one
     currentTile = nil;
     currentDirection = '0';
 }
@@ -25,7 +25,7 @@ function prepareWaterWalker(x, y)
     WATER.Y = y;
     WATER.currentTile = nil;
     WATER.currentDirection = 'O';
-    WATER.speed = 1400;
+    WATER.speed = 4200; -- max arond 4200 start, min ardoun 1600 end, maybe 100 turbo flow
 end
 
 -- This will rush the round over
@@ -49,6 +49,15 @@ end
 function stepWaterWalker()
     local heading <const> = WATER.currentTile.paths[WATER.currentDirection];
 
+    -- Update the score and the objectives
+    subtractFromDistance();
+    if WATER.currentTile.name == "Cross" and WATER.currentTile.locked == true then
+        addToScore(300)
+    else
+        addToScore(100)
+    end
+
+    -- Cleanup the display and set properties
     if WATER.currentTile.name ~= "Cross" or WATER.currentTile.locked == true then
         setTileSpriteFrame(WATER.X, WATER.Y, WATER.currentTile.sprites.full)
         setTileLocked(WATER.X, WATER.Y)
@@ -57,6 +66,7 @@ function stepWaterWalker()
         setTileLocked(WATER.X, WATER.Y)
         if WATER.currentDirection == "N" or WATER.currentDirection == "S" then
             setTileSpriteFrame(WATER.X, WATER.Y, WATER.currentTile.sprites.vFull)
+            addToScore(100)
         else -- Water flowing horizontally
             setTileSpriteFrame(WATER.X, WATER.Y, WATER.currentTile.sprites.hFull)
         end
@@ -78,7 +88,7 @@ function stepWaterWalker()
     WATER.currentTile = getTileAt(WATER.X, WATER.Y)
 
     -- Check if we have reached the end of the path
-    if WATER.currentTile.filled or WATER.currentTile.paths[WATER.currentDirection] == " " then
+    if WATER.currentTile == nil or WATER.currentTile.filled or WATER.currentTile.paths[WATER.currentDirection] == " " then
         WATER.flowing = false;
         WATER_TIMER = nil;
         print('Game over man');

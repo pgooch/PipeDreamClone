@@ -22,12 +22,12 @@ local animation = 'none';
 local animationTimer = nil;
 
 -- Cursor locks while doing things to build tension when the end is near
-local LOCK_DURATION_ADD    <const> = 120 -- 60 theoretical minimum
+local LOCK_DURATION_ADD    <const> = 120 --  60 theoretical minimum
 local LOCK_DURATION_ERROR  <const> = 240 -- 160 theoretical minimum
 local LOCK_DURATION_REMOVE <const> = 480 -- 191 theoretical minimum
 
 -- We need a few bits of data about the playfield, but we want to store it locally for performance
-local PLAYFIELD <const> = getPlayfieldData();
+-- local PLAYFIELD <const> = getPlayfieldData();
 
 -- The main cursor object that all this stuff is contained in
 local CURSOR = {
@@ -128,9 +128,14 @@ local cursorInputHanders <const> = {
     leftButtonUp    = function()       directionInputUp( 'left' )  end,
     rightButtonDown = function()   directionalInputDown( 'right' ) end,
     rightButtonUp   = function()       directionInputUp( 'right' ) end,
-    AButtonUp       = function() mainActionInputHandler()          end,
+    -- AButtonUp       = function() mainActionInputHandler()          end,
+    AButtonUp = function()
+        -- print('B Button Up, maybe do something')
+            goToIntermission()
+    end,
     BButtonUp = function()
-        print('B Button Up, maybe do something')
+        -- print('B Button Up, maybe do something')
+            leaveIntermission()
     end,
 }
 playdate.inputHandlers.push(cursorInputHanders)
