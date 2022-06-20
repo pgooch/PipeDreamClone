@@ -2,15 +2,9 @@
 
 _I'll come up with a better name later._
 
-### Using Nodemon for Development
-
-The following command will run nodemon, have it watch the directory for changes, and automatically build on save.
-
-```
-nodemon -e lua --exec "pdc ./ ../PipeDreamClone.pdx"
-```
-
-Naturally you'll need nodemon installed globally for this to work.
+## Runnables
+ - `npm run dev` Starts node monitor watching/building the .pdx from src.
+ - `npm run buildSprites` Compiles a spritesheet
 
 ## Preparing Spritesheets
 New sprite sheets are not implemetend yet, however the pre-process/js will take the exports contents and automate a bunch of the work. THis still needs to be finished up.

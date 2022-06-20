@@ -1,0 +1,21 @@
+{
+  "name": "pipe-dream-clone",
+  "description": "A pipe dream clone for Playdate.",
+  "version": "0.0.1",
+  "devDependencies": {
+    "jimp": "^0.16.1"
+  },
+  "scripts": {
+    "dev": "nodemon -e lua --exec \"pdc ./src ./PipeDreamClone.pdx\"",
+    "buildSprites": "cd ./sprite-preprocessing/ && node ./"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pgooch/PipeDreamClone.git"
+  },
+  "author": "pGooch",
+  "bugs": {
+    "url": "https://github.com/pgooch/PipeDreamClone/issues"
+  },
+  "homepage": "https://github.com/pgooch/PipeDreamClone#readme"
+}
